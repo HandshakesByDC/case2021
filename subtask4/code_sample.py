@@ -21,7 +21,7 @@ class RandomModel():
         for label in self.transitions:
             sumOfAll = sum(self.transitions[label].values())
             for l in self.transitions[label]:
-                self.transitions[label][l] = round(self.transitions[label][l]/sumOfAll,2)
+                self.transitions[label][l] = self.transitions[label][l]/sumOfAll
 
     def predict(self,tokens):
         """
