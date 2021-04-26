@@ -97,3 +97,5 @@ def main(train_file, prediction_output_file, test_file=None):
 if __name__ == "__main__":
     args = parse()
     main(args.train_file, args.prediction_output_file, args.test_file)
+
+    # python code_sample.py --train_file /home/paultan/case2021/data/20210312/subtask2-sentence/en-train.json --prediction_output_file /home/paultan/case2021/data/20210312/subtask2-senten ce/en-preds.json
