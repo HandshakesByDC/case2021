@@ -1,12 +1,17 @@
 from pathlib import Path
 import re
 
+from tqdm import tqdm
+
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 import torch
+from torch.utils.data import DataLoader
 
-from transformers import BertTokenizerFast
+from transformers import AdamW, BertTokenizerFast, BertForTokenClassification
+
+from conlleval import evaluate as conll_evaluate
 
 def read_data(file_path):
     file_path = Path(file_path)
@@ -70,8 +75,6 @@ def align_labels(tags, encodings):
         labels.append(label_ids)
     return labels
 
-import torch
-
 class NERDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels):
         self.encodings = encodings
@@ -102,3 +105,53 @@ val_labels = align_labels(val_tags, val_encodings)
 
 train_dataset = NERDataset(train_encodings, train_labels)
 val_dataset = NERDataset(val_encodings, val_labels)
+
+train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=4, shuffle=True)
+
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+model = BertForTokenClassification.from_pretrained('bert-base-cased', num_labels=len(unique_tags))
+optim = AdamW(model.parameters(), lr=5e-5)
+
+model.to(device)
+model.train()
+
+for epoch in range(5):
+    model.train()
+    for batch in tqdm(train_loader):
+        optim.zero_grad()
+        input_ids = batch['input_ids'].to(device)
+        attention_mask = batch['attention_mask'].to(device)
+        labels = batch['labels'].to(device)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
+        loss = outputs[0]
+        loss.backward()
+        optim.step()
+
+    model.eval()
+    val_preds = []
+    val_labels = []
+    for batch in tqdm(val_loader):
+        input_ids = batch['input_ids'].to(device)
+        attention_mask = batch['attention_mask'].to(device)
+        labels = batch['labels'].to(device)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
+        loss = outputs[0]
+        logits = outputs[1]
+        preds = torch.argmax(logits, 2)
+        val_pred = preds[attention_mask > 0]
+        val_label = labels[attention_mask > 0]
+        val_pred = val_pred[val_label > -1]
+        val_label = val_label[val_label > -1]
+        val_preds.append(val_pred)
+        val_labels.append(val_label)
+
+    val_preds = sum(map(lambda x: x.tolist(), val_preds), [])
+    val_labels = sum(map(lambda x: x.tolist(), val_labels), [])
+    val_preds_tag = [id2tag[i] for i in val_preds]
+    val_labels_tag = [id2tag[i] for i in val_labels]
+    conll_evaluate(val_labels_tag, val_preds_tag)
+
+model.eval()
+torch.save(model.state_dict(), 'baseline_bert.model')
