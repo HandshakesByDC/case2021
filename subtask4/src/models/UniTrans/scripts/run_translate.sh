@@ -1,10 +1,10 @@
 #!/bin/bash
 GPU_ID=0
 SRC_LANG=en
-TGT_LANGS=de
+TGT_LANGS=(es pt)
 EMB_PATH=data/embedding
 DICT_PATH=data/dict
-DATA_DIR=data/ner/conll
+DATA_DIR=data/ner/glocon
 
 for t in ${TGT_LANGS[@]}; do
     python3 MUSE/supervised.py \
@@ -21,5 +21,5 @@ for t in ${TGT_LANGS[@]}; do
         --exp_id muse \
         --export ""
 
-    python3 translate.py --tgt_lang=${t} --embed_dir ${EMB_PATH} --gpu_id=${GPU_ID} --data_dir=${DATA_DIR}
+    python3 translate.py --tgt_lang=${t} --embed_dir ${EMB_PATH} --gpu_id=${GPU_ID} --data_dir=${DATA_DIR} --batch_size 4000
 done
