@@ -7,7 +7,7 @@ class GloconFile:
         self.tag_docs = tag_docs
 
     @classmethod
-    def build(cls, file_path, max_tag=400):
+    def build(cls, file_path, max_tags=400):
         file_path = Path(file_path)
 
         raw_text = file_path.read_text().strip()
@@ -21,7 +21,7 @@ class GloconFile:
                 token, tag = line.split('\t')
                 tokens.append(token)
                 tags.append(tag)
-            while len(tokens) > 400:
+            while len(tokens) > max_tags:
                 print(f"Split {len(tokens)} to -> :", end="")
                 sep_idx = [i for i,t in enumerate(tokens) if t == '[SEP]']
                 split_at = sep_idx[len(sep_idx)//2]

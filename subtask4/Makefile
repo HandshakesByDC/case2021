@@ -42,8 +42,9 @@ $(UNITRANS_DATA_DIR)/dict:
 	cd $(UNITRANS_DATA_DIR) && mkdir dict
 
 $(UNITRANS_TRAIN_DATA): $(UNITRANS_DATA_DIR)/ner/glocon/%/train.txt: $(UNITRANS_DATA_DIR)/ner/glocon/%
-	ln -sfv ../../../../../../../data/$*-orig.txt $@
-	touch data/$*-orig.txt
+	python -c "from src.dataset import GloconFile; GloconFile.build('data/$*-orig.txt', max_tags=400).save('data/$*-split.txt')"
+	ln -sfv ../../../../../../../data/$*-split.txt $@
+	touch data/$*-split.txt
 
 $(UNITRANS_DATA_DIR)/ner/glocon/%:
 	mkdir -p $@
