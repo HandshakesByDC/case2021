@@ -1,20 +1,7 @@
-from pathlib import Path
-import re
-
 import torch
 
-class Singleton(type):
-    _instances = {}
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-class TagMap(metaclass=Singleton):
-    def __init__(self, unique_tags):
-        print("creating TagIdMap")
-        self.tag2id = {tag: id for id, tag in enumerate(unique_tags)}
-        self.id2tag = {id: tag for tag, id in self.tag2id.items()}
+from .fileio import GloconFile
+from .utils import TagMap
 
 class GloconDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels, tag_map):
@@ -32,45 +19,21 @@ class GloconDataset(torch.utils.data.Dataset):
 
     @classmethod
     def build(cls, file_path, tokenizer):
-        file_path = Path(file_path)
-
-        raw_text = file_path.read_text().strip()
-        raw_docs = re.split(r'\n\t?\n', raw_text)
-        token_docs = []
-        tag_docs = []
-        for doc in raw_docs:
-            tokens = []
-            tags = []
-            for line in doc.split('\n'):
-                token, tag = line.split('\t')
-                tokens.append(token)
-                tags.append(tag)
-            while len(tokens) > 400:
-                print(f"Split {len(tokens)} to -> :", end="")
-                sep_idx = [i for i,t in enumerate(tokens) if t == '[SEP]']
-                split_at = sep_idx[len(sep_idx)//2]
-                token_docs.append(tokens[:split_at])
-                tag_docs.append(tags[:split_at])
-                tokens = tokens[split_at:]
-                tokens[0] = 'SAMPLE_START'
-                tags = tags[split_at:]
-                print(f" {len(tokens)}")
-            token_docs.append(tokens)
-            tag_docs.append(tags)
+        gf = GloconFile.build(file_path)
 
         encodings = tokenizer(
-            token_docs,
+            gf.token_docs,
             is_split_into_words=True,
             padding=True,
             truncation=True
         )
 
-        unique_tags = set(tag for doc in tag_docs for tag in doc)
+        unique_tags = set(tag for doc in gf.tag_docs for tag in doc)
         tag_map = TagMap(unique_tags)
         tag2id = tag_map.tag2id
 
         align_tags = []
-        for i, tag in enumerate(tag_docs):
+        for i, tag in enumerate(gf.tag_docs):
             word_ids = encodings.word_ids(batch_index=i)
             previous_word_idx = None
             tag_ids = []
