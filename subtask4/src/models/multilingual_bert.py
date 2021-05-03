@@ -11,9 +11,7 @@ from torch.utils.data import DataLoader
 
 from transformers import AdamW, BertTokenizerFast, BertForTokenClassification
 
-from conlleval import evaluate as conll_evaluate
-
-from ..dataset import GloconDataset
+from ..dataset import GloconDataset, conll_evaluate
 
 tokenizer = BertTokenizerFast.from_pretrained('bert-base-multilingual-cased')
 
