@@ -45,6 +45,16 @@ class GloconDataset(torch.utils.data.Dataset):
                 token, tag = line.split('\t')
                 tokens.append(token)
                 tags.append(tag)
+            while len(tokens) > 400:
+                print(f"Split {len(tokens)} to -> :", end="")
+                sep_idx = [i for i,t in enumerate(tokens) if t == '[SEP]']
+                split_at = sep_idx[len(sep_idx)//2]
+                token_docs.append(tokens[:split_at])
+                tag_docs.append(tags[:split_at])
+                tokens = tokens[split_at:]
+                tokens[0] = 'SAMPLE_START'
+                tags = tags[split_at:]
+                print(f" {len(tokens)}")
             token_docs.append(tokens)
             tag_docs.append(tags)
 
