@@ -19,7 +19,7 @@ tokenizer = BertTokenizerFast.from_pretrained('bert-base-multilingual-cased')
 
 train_dataset = GloconDataset.build('data/en-orig.txt', tokenizer)
 es_dataset = GloconDataset.build('data/es-orig.txt', tokenizer)
-pr_dataset = GloconDataset.build('data/pr-orig.txt', tokenizer)
+pr_dataset = GloconDataset.build('data/pt-orig.txt', tokenizer)
 
 train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
 es_loader = DataLoader(es_dataset, batch_size=2, shuffle=True)
