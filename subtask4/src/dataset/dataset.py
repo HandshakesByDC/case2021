@@ -1,7 +1,6 @@
 import torch
 
 from .fileio import GloconFile
-from .utils import TagMap
 
 class GloconDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels, tag_map):
@@ -18,8 +17,8 @@ class GloconDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
     @classmethod
-    def build(cls, file_path, tokenizer):
-        gf = GloconFile.build(file_path)
+    def build(cls, file_path, tokenizer, **kwargs):
+        gf = GloconFile.build(file_path, **kwargs)
 
         encodings = tokenizer(
             gf.token_docs,
@@ -28,9 +27,7 @@ class GloconDataset(torch.utils.data.Dataset):
             truncation=True
         )
 
-        unique_tags = set(tag for doc in gf.tag_docs for tag in doc)
-        tag_map = TagMap(unique_tags)
-        tag2id = tag_map.tag2id
+        tag2id = gf.tag_map.tag2id
 
         align_tags = []
         for i, tag in enumerate(gf.tag_docs):
@@ -53,4 +50,4 @@ class GloconDataset(torch.utils.data.Dataset):
 
             align_tags.append(tag_ids)
 
-        return cls(encodings, align_tags, tag_map)
+        return cls(encodings, align_tags, gf.tag_map)

@@ -1,10 +1,13 @@
 from pathlib import Path
 import re
 
+from .utils import TagMap
+
 class GloconFile:
-    def __init__(self, token_docs, tag_docs):
+    def __init__(self, token_docs, tag_docs, tag_map):
         self.token_docs = token_docs
         self.tag_docs = tag_docs
+        self.tag_map = tag_map
 
     @classmethod
     def build(cls, file_path, max_tags=400):
@@ -34,7 +37,10 @@ class GloconFile:
             token_docs.append(tokens)
             tag_docs.append(tags)
 
-        return cls(token_docs, tag_docs)
+        unique_tags = set(tag for doc in tag_docs for tag in doc)
+        tag_map = TagMap(unique_tags)
+
+        return cls(token_docs, tag_docs, tag_map)
 
     def save(self, file_path):
         with open(file_path, 'w') as f:

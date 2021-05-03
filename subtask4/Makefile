@@ -48,6 +48,7 @@ $(UNITRANS_TRAIN_DATA): $(UNITRANS_DATA_DIR)/ner/glocon/%/train.txt: $(UNITRANS_
 
 $(UNITRANS_DATA_DIR)/ner/glocon/%:
 	mkdir -p $@
+	python -c "from src.dataset import GloconFile; GloconFile.build('data/en-orig.txt', max_tags=400).tag_map.save('$@/labels.txt')"
 
 .PHONY: MUSE
 MUSE: $(MUSE_DATA_DIR)/crosslingual
