@@ -11,8 +11,10 @@ from transformers import AdamW, BertTokenizerFast, BertForTokenClassification
 from ..dataset import GloconDataset, conll_evaluate
 
 class MultilingualBertTokenClassifier(pl.LightningModule):
-    def __init__(self, num_labels, tokenizer, batch_size):
+    def __init__(self, tokenizer, tag_map, batch_size):
         super().__init__()
+        self.tag_map = tag_map
+        num_labels = len(self.tag_map.tag2id)
         self.bert = BertForTokenClassification.from_pretrained('bert-base-multilingual-cased', num_labels=num_labels)
         self.tokenizer = tokenizer
         self.batch_size = batch_size
@@ -30,7 +32,6 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, test_split=0.05)
         es_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer, test_split=0.05)
         pt_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer, test_split=0.05)
-        self.tag_map = en_dataset.tag_map
         train_dataset = torch.utils.data.ConcatDataset([en_dataset, es_dataset,
                                                        pt_dataset])
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -75,8 +76,7 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         }
 
     def validation_epoch_end(self, outs):
-        tag_map = self.trainer.val_dataloaders[0].dataset.tag_map
-        id2tag = tag_map.id2tag
+        id2tag = self.tag_map.id2tag
         val_loss = 0
         val_f1 = 0
         for i, out in enumerate(outs):
@@ -115,7 +115,7 @@ def cli_main():
     id2tag = tag_map.id2tag
     num_tags = len(id2tag)
 
-    model = MultilingualBertTokenClassifier(num_labels=num_tags, tokenizer=tokenizer, batch_size=args.batch_size)
+    model = MultilingualBertTokenClassifier(tokenizer=tokenizer, tag_map=tag_map, batch_size=args.batch_size)
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_f1", mode='max', patience=2)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_f1", mode='max', verbose=True)
 
