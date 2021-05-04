@@ -117,13 +117,13 @@ def cli_main():
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
     parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--load", type=str, default=None)
     args = parser.parse_args()
 
     tokenizer = BertTokenizerFast.from_pretrained('bert-base-multilingual-cased')
 
     tag_map = TagMap.build('src/models/UniTrans/data/ner/glocon/labels.txt')
 
-    model = MultilingualBertTokenClassifier(tokenizer=tokenizer, tag_map=tag_map, batch_size=args.batch_size)
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_f1", mode='max', patience=2)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_f1", mode='max', verbose=True)
 
@@ -134,7 +134,19 @@ def cli_main():
         precision=16,
     )
 
-    trainer.fit(model)
+    if args.load is None:
+        model = MultilingualBertTokenClassifier(tokenizer=tokenizer, tag_map=tag_map, batch_size=args.batch_size)
+        trainer.fit(model)
+        model = MultilingualBertTokenClassifier.load_from_checkpoint(trainer.checkpoint_callback.best_model_path,
+                                                                    tokenizer=tokenizer,
+                                                                    tag_map=tag_map,
+                                                                    batch_size=args.batch_size)
+    else:
+        model = MultilingualBertTokenClassifier.load_from_checkpoint(args.load,
+                                                                    tokenizer=tokenizer,
+                                                                    tag_map=tag_map,
+                                                                    batch_size=args.batch_size)
+
 
 if __name__ == "__main__":
     cli_main()
