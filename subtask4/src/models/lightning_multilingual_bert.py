@@ -9,15 +9,18 @@ import pytorch_lightning as pl
 from transformers import AdamW, BertTokenizerFast, BertForTokenClassification
 
 from ..dataset import GloconDataset, conll_evaluate
+from ..models.viterbi_decoder import ViterbiDecoder
 
 class MultilingualBertTokenClassifier(pl.LightningModule):
-    def __init__(self, tokenizer, tag_map, batch_size):
+    def __init__(self, tokenizer, tag_map, batch_size, use_viterbi=False):
         super().__init__()
         self.tag_map = tag_map
         num_labels = len(self.tag_map.tag2id)
         self.bert = BertForTokenClassification.from_pretrained('bert-base-multilingual-cased', num_labels=num_labels)
         self.tokenizer = tokenizer
         self.batch_size = batch_size
+        self.use_viterbi = use_viterbi
+        self.viterbi_decoder = None
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=5e-5)
@@ -58,21 +61,28 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         return [en_loader, es_loader, pt_loader]
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
+        if self.use_viterbi and self.viterbi_decoder is None:
+            self.viterbi_decoder = ViterbiDecoder(self.tag_map.id2tag, -100, self.device)
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
         outputs = self.bert(
             input_ids, attention_mask=attention_mask, labels=labels
         )
-        batch_preds = torch.argmax(outputs.logits, 2)[attention_mask > 0]
         batch_labels = labels[attention_mask > 0]
-        final_preds = batch_preds[batch_labels > -1]
         final_labels = batch_labels[batch_labels > -1]
+        if self.use_viterbi:
+            log_probs = torch.nn.functional.log_softmax(outputs.logits.detach(), dim=-1)
+            batch_preds = self.viterbi_decoder.forward(log_probs, attention_mask, labels)
+            final_preds = sum(map(lambda x: x, batch_preds), [])
+        else:
+            batch_preds = torch.argmax(outputs.logits, 2)[attention_mask > 0]
+            final_preds = batch_preds[batch_labels > -1].tolist()
 
         return {
-            f"val_loss_{dataloader_idx}": outputs.loss,
+            f"val_loss_{dataloader_idx}": outputs.loss.item(),
             f"val_preds_{dataloader_idx}": final_preds,
-            f"val_labels_{dataloader_idx}": final_labels,
+            f"val_labels_{dataloader_idx}": final_labels.tolist(),
         }
 
     def validation_epoch_end(self, outs):
@@ -80,10 +90,10 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         val_loss = 0
         val_f1 = 0
         for i, out in enumerate(outs):
-            val_loss += sum(map(lambda x: x[f"val_loss_{i}"].tolist(), out), 0)
+            val_loss += sum(map(lambda x: x[f"val_loss_{i}"], out), 0)
 
-            preds = sum(map(lambda x: x[f"val_preds_{i}"].tolist(), out), [])
-            labels = sum(map(lambda x: x[f"val_labels_{i}"].tolist(), out), [])
+            preds = sum(map(lambda x: x[f"val_preds_{i}"], out), [])
+            labels = sum(map(lambda x: x[f"val_labels_{i}"], out), [])
             preds_tag = [id2tag[i] for i in preds]
             labels_tag = [id2tag[i] for i in labels]
             _, _, f1 = conll_evaluate(labels_tag, preds_tag)
