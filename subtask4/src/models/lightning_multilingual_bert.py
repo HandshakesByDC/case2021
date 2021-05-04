@@ -74,15 +74,15 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         final_labels = batch_labels[batch_labels > -1]
         if self.use_viterbi:
             log_probs = torch.nn.functional.log_softmax(outputs.logits.detach(), dim=-1)
-            batch_preds = self.viterbi_decoder.forward(log_probs, attention_mask, labels)
-            final_preds = sum(map(lambda x: x, batch_preds), [])
+            batch_preds = self.viterbi_decoder.forward(log_probs, attention_mask)
+            final_preds = torch.tensor(sum(map(lambda x: x, batch_preds), []))[batch_labels > -1]
         else:
             batch_preds = torch.argmax(outputs.logits, 2)[attention_mask > 0]
-            final_preds = batch_preds[batch_labels > -1].tolist()
+            final_preds = batch_preds[batch_labels > -1]
 
         return {
             f"val_loss_{dataloader_idx}": outputs.loss.item(),
-            f"val_preds_{dataloader_idx}": final_preds,
+            f"val_preds_{dataloader_idx}": final_preds.tolist(),
             f"val_labels_{dataloader_idx}": final_labels.tolist(),
         }
 

@@ -13,8 +13,8 @@ class ViterbiDecoder():
                     self.transitions[i, j] = -10000
                     # print(f"{self.label_map[i]} -> {self.label_map[j]} not allowed")
 
-    def forward(self, logprobs, attention_mask, label_ids):
-        active_tokens = (attention_mask == 1) & (label_ids != self.pad_token_label_id)
+    def forward(self, logprobs, attention_mask):
+        active_tokens = (attention_mask == 1)
 
         # probs: batch_size x max_seq_len x n_labels
         batch_size, max_seq_len, n_labels = logprobs.size()
