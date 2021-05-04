@@ -105,7 +105,7 @@ def cli_main():
     # args
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=4)
     args = parser.parse_args()
 
     tokenizer = BertTokenizerFast.from_pretrained('bert-base-multilingual-cased')
@@ -120,7 +120,10 @@ def cli_main():
     checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_f1", mode='max', verbose=True)
 
     trainer = pl.Trainer.from_argparse_args(
-        args, callbacks=[early_stopping_callback, checkpoint_callback]
+        args, callbacks=[early_stopping_callback, checkpoint_callback],
+        gpus=1,
+        accumulate_grad_batches=8,
+        precision=16,
     )
 
     trainer.fit(model)
