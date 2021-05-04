@@ -28,8 +28,8 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
 
     def train_dataloader(self):
         en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, test_split=0.05)
-        es_dataset = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer)
-        pt_dataset = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer)
+        es_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer, test_split=0.05)
+        pt_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer, test_split=0.05)
         self.tag_map = en_dataset.tag_map
         train_dataset = torch.utils.data.ConcatDataset([en_dataset, es_dataset,
                                                        pt_dataset])
