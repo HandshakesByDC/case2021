@@ -1,13 +1,14 @@
 #!/bin/bash
 
 GPU_IDS=0
-TGT_LANG=(de)
+TGT_LANG=(es)
 ENCODING=UTF-8
-SEEDS=(122 649 705 854 975)
-DATA_DIR=data/ner/conll
+# SEEDS=(122 649 705 854 975)
+SEEDS=(122)
+DATA_DIR=data/ner/glocon
 OUT_NAME=result
-LABEL_PATH=data/ner/conll/labels.txt
-PRED_MODS=(test dev)
+LABEL_PATH=data/ner/glocon/labels.txt
+PRED_MODS=(train)
 
 for seed in ${SEEDS[@]}; do
     # M_trans
@@ -107,4 +108,4 @@ python scripts/statistical.py \
     --finetune_dir=${OUT_NAME}/result-122/mBERT_finetune_XLData_en2${TGT_LANG} \
     --unitrans_finetune_dir=${OUT_NAME}/result-122/UniTran-fineTran_${TGT_LANG}_1.0-lossWithCE \
     --unitrans_src_dir=${OUT_NAME}/result-122/UniTran-mBERT_${TGT_LANG}_1.0-lossWithCE \
-    --seeds=122,649,705,854,975
+    --seeds=122

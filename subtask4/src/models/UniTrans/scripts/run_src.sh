@@ -1,13 +1,14 @@
 #!/bin/bash
 
 GPU_IDS=0
-TGT_LANGS=(de)
+TGT_LANGS=(es pt)
 ENCODING=UTF-8
-SEEDS=(122 649 705 854 975)
-DATA_DIR=data/ner/conll
+# SEEDS=(122 649 705 854 975)
+SEEDS=(122)
+DATA_DIR=data/ner/glocon
 OUT_NAME=result
-LABEL_PATH=data/ner/conll/labels.txt
-PRED_MODS=(test dev)
+LABEL_PATH=data/ner/glocon/labels.txt
+PRED_MODS=(train)
 
 for seed in ${SEEDS[@]}; do
     # M_src
