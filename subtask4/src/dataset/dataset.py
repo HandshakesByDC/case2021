@@ -5,10 +5,9 @@ from sklearn.model_selection import train_test_split
 from .fileio import GloconFile
 
 class GloconDataset(torch.utils.data.Dataset):
-    def __init__(self, encodings, labels, tag_map):
+    def __init__(self, encodings, labels):
         self.encodings = encodings
         self.labels = labels
-        self.tag_map = tag_map
 
     def __getitem__(self, idx):
         item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
@@ -19,9 +18,9 @@ class GloconDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
     @classmethod
-    def build(cls, file_path, tokenizer, test_split=0, **kwargs):
+    def build(cls, file_path, tokenizer, tag_map, test_split=0, **kwargs):
         gf = GloconFile.build(file_path, **kwargs)
-        tag2id = gf.tag_map.tag2id
+        tag2id = tag_map.tag2id
 
         if test_split > 0:
             train_token_docs, test_token_docs = train_test_split(gf.token_docs, random_state=0, test_size=test_split)
@@ -31,12 +30,12 @@ class GloconDataset(torch.utils.data.Dataset):
             train_align_tags = cls.create_aligned_tags(train_encodings, train_tag_docs, tag2id)
             test_align_tags = cls.create_aligned_tags(test_encodings, test_tag_docs, tag2id)
 
-            return cls(train_encodings, train_align_tags, gf.tag_map), cls(test_encodings, test_align_tags, gf.tag_map)
+            return cls(train_encodings, train_align_tags), cls(test_encodings, test_align_tags)
         else:
             encodings = cls.create_encodings(gf.token_docs, tokenizer)
             align_tags = cls.create_aligned_tags(encodings, gf.tag_docs, tag2id)
 
-            return cls(encodings, align_tags, gf.tag_map)
+            return cls(encodings, align_tags)
 
     @staticmethod
     def create_encodings(token_docs, tokenizer):

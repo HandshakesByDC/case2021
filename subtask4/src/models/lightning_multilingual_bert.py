@@ -8,11 +8,11 @@ import pytorch_lightning as pl
 
 from transformers import AdamW, BertTokenizerFast, BertForTokenClassification
 
-from ..dataset import GloconDataset, conll_evaluate
+from ..dataset import GloconDataset, conll_evaluate, TagMap
 from ..models.viterbi_decoder import ViterbiDecoder
 
 class MultilingualBertTokenClassifier(pl.LightningModule):
-    def __init__(self, tokenizer, tag_map, batch_size, use_viterbi=False):
+    def __init__(self, tokenizer, tag_map, batch_size, use_viterbi=True):
         super().__init__()
         self.tag_map = tag_map
         num_labels = len(self.tag_map.tag2id)
@@ -32,11 +32,12 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         return embedding
 
     def train_dataloader(self):
-        en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, test_split=0.05)
-        es_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer, test_split=0.05)
-        pt_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer, test_split=0.05)
-        train_dataset = torch.utils.data.ConcatDataset([en_dataset, es_dataset,
-                                                       pt_dataset])
+        en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
+        es_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
+        pt_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
+        # train_dataset = torch.utils.data.ConcatDataset([en_dataset, es_dataset,
+                                                       # pt_dataset])
+        train_dataset = en_dataset
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         return train_loader
 
@@ -50,9 +51,9 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         return { "loss": outputs.loss}
 
     def val_dataloader(self):
-        _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, test_split=0.05)
-        es_dataset = GloconDataset.build('data/es-orig.txt', self.tokenizer)
-        pt_dataset = GloconDataset.build('data/pt-orig.txt', self.tokenizer)
+        _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
+        es_dataset = GloconDataset.build('data/es-orig.txt', self.tokenizer, self.tag_map)
+        pt_dataset = GloconDataset.build('data/pt-orig.txt', self.tokenizer, self.tag_map)
 
         en_loader = DataLoader(en_dataset, batch_size=self.batch_size, shuffle=False)
         es_loader = DataLoader(es_dataset, batch_size=self.batch_size, shuffle=False)
@@ -120,10 +121,7 @@ def cli_main():
 
     tokenizer = BertTokenizerFast.from_pretrained('bert-base-multilingual-cased')
 
-    en_dataset = GloconDataset.build('data/en-orig.txt', tokenizer)
-    tag_map = en_dataset.tag_map
-    id2tag = tag_map.id2tag
-    num_tags = len(id2tag)
+    tag_map = TagMap.build('src/models/UniTrans/data/ner/glocon/labels.txt')
 
     model = MultilingualBertTokenClassifier(tokenizer=tokenizer, tag_map=tag_map, batch_size=args.batch_size)
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_f1", mode='max', patience=2)

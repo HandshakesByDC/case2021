@@ -16,3 +16,9 @@ class TagMap(metaclass=Singleton):
         with open(filepath, 'w') as f:
             for t in tags:
                 f.write(f"{t}\n")
+    @classmethod
+    def build(cls, filepath):
+        with open(filepath, 'r') as f:
+            tags = [line.strip() for line in f]
+
+        return cls(tags)
