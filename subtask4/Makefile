@@ -32,13 +32,16 @@ UniTrans: $(UNITRANS_WIKI_EMBEDS) $(UNITRANS_GT_DICTS) $(UNITRANS_TRAIN_DATA)
 $(UNITRANS_DATA_DIR)/embedding/wiki.%.vec: $(MUSE_DATA_DIR)/wiki.%.vec | $(UNITRANS_DATA_DIR)/embedding
 	ln -sfv ../$(patsubst $(UNITRANS_DATA_DIR)/%,%,$<) $@
 
-$(UNITRANS_DATA_DIR)/embedding:
+$(UNITRANS_DATA_DIR)/embedding: | $(UNITRANS_DATA_DIR)
 	cd $(UNITRANS_DATA_DIR) && mkdir embedding
+
+$(UNITRANS_DATA_DIR):
+	mkdir -p $(UNITRANS_DATA_DIR)
 
 $(UNITRANS_DATA_DIR)/dict/%.5000-6500.txt: $(MUSE_DATA_DIR)/%.5000-6500.txt | $(UNITRANS_DATA_DIR)/dict
 	ln -sfv ../$(patsubst $(UNITRANS_DATA_DIR)/%,%,$<) $@
 
-$(UNITRANS_DATA_DIR)/dict:
+$(UNITRANS_DATA_DIR)/dict: | $(UNITRANS_DATA_DIR)
 	cd $(UNITRANS_DATA_DIR) && mkdir dict
 
 $(UNITRANS_TRAIN_DATA): $(UNITRANS_DATA_DIR)/ner/glocon/%/train.txt: $(UNITRANS_DATA_DIR)/ner/glocon/%
@@ -58,8 +61,12 @@ $(MUSE_DATA_DIR)/crosslingual:
 	cd $(MUSE_DATA_DIR) && sh get_evaluation.sh
 
 .PRECIOUS: $(MUSE_DATA_DIR)/wiki.%.vec
-$(MUSE_DATA_DIR)/wiki.%.vec:
+$(MUSE_DATA_DIR)/wiki.%.vec: | $(MUSE_DATA_DIR)
 	curl -Lo $@ https://dl.fbaipublicfiles.com/fasttext/vectors-wiki/$(patsubst $(MUSE_DATA_DIR)/%,%,$@)
 
-$(MUSE_DATA_DIR)/%.5000-6500.txt:
+.PRECIOUS: $(MUSE_DATA_DIR)/%.5000-6500.txt
+$(MUSE_DATA_DIR)/%.5000-6500.txt: | $(MUSE_DATA_DIR)
 	curl -Lo $@ https://dl.fbaipublicfiles.com/arrival/dictionaries/$(patsubst $(MUSE_DATA_DIR)/%,%,$@)
+
+$(MUSE_DATA_DIR):
+	mkdir -p $(MUSE_DATA_DIR)
