@@ -27,7 +27,7 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         return embedding
 
     def train_dataloader(self):
-        en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer)
+        en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, test_split=0.05)
         es_dataset = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer)
         pt_dataset = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer)
         self.tag_map = en_dataset.tag_map
@@ -46,13 +46,15 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         return { "loss": outputs.loss}
 
     def val_dataloader(self):
+        _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, test_split=0.05)
         es_dataset = GloconDataset.build('data/es-orig.txt', self.tokenizer)
         pt_dataset = GloconDataset.build('data/pt-orig.txt', self.tokenizer)
 
+        en_loader = DataLoader(en_dataset, batch_size=self.batch_size, shuffle=False)
         es_loader = DataLoader(es_dataset, batch_size=self.batch_size, shuffle=False)
         pt_loader = DataLoader(pt_dataset, batch_size=self.batch_size, shuffle=False)
 
-        return [es_loader, pt_loader]
+        return [en_loader, es_loader, pt_loader]
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         input_ids = batch["input_ids"]
