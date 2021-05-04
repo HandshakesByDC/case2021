@@ -49,7 +49,10 @@ $(UNITRANS_TRAIN_DATA): $(UNITRANS_DATA_DIR)/ner/glocon/%/train.txt: $(UNITRANS_
 	ln -sfv ../../../../../../../data/$*-split.txt $@
 	touch data/$*-split.txt
 
-$(UNITRANS_DATA_DIR)/ner/glocon/%:
+$(UNITRANS_DATA_DIR)/ner/glocon/%: | $(UNITRANS_DATA_DIR)/ner/glocon
+	mkdir -p $@
+
+$(UNITRANS_DATA_DIR)/ner/glocon:
 	mkdir -p $@
 	python -c "from src.dataset import GloconFile; GloconFile.build('data/en-orig.txt', max_tags=400).tag_map.save('$@/labels.txt')"
 
@@ -70,3 +73,7 @@ $(MUSE_DATA_DIR)/%.5000-6500.txt: | $(MUSE_DATA_DIR)
 
 $(MUSE_DATA_DIR):
 	mkdir -p $(MUSE_DATA_DIR)
+
+clean:
+	rm -rf data
+	rm -rf src/models/UniTrans/data/ner/glocon
