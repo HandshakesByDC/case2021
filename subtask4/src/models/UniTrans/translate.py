@@ -164,7 +164,7 @@ def translate(dict_en_tgt_path, output_fn, args, tgt_ner_vocab_lower=None):
                 word, label = line.strip().split() # [word, label]
 
                 if label[2:] == 'PER' or word.lower() not in word_dict:
-                    fw.write(word + ' ' + label + '\n')
+                    fw.write(word + '\t' + label + '\n')
 
                 else:
                     temp = word_dict[word.lower()]
@@ -179,7 +179,7 @@ def translate(dict_en_tgt_path, output_fn, args, tgt_ner_vocab_lower=None):
                         else:
                             word = temp
 
-                    fw.write(word + ' ' + label + '\n')
+                    fw.write(word + '\t' + label + '\n')
             if (idx + 1) % 10000 ==0:
                 print('Translate tokens #%d' % (idx + 1))
 
