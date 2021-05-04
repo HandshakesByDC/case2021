@@ -76,6 +76,7 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         tag_map = self.trainer.val_dataloaders[0].dataset.tag_map
         id2tag = tag_map.id2tag
         val_loss = 0
+        val_f1 = 0
         for i, out in enumerate(outs):
             val_loss += sum(map(lambda x: x[f"val_loss_{i}"].tolist(), out), 0)
 
@@ -84,8 +85,10 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
             preds_tag = [id2tag[i] for i in preds]
             labels_tag = [id2tag[i] for i in labels]
             _, _, f1 = conll_evaluate(labels_tag, preds_tag)
+            val_f1 += f1
 
         self.log('val_loss', val_loss)
+        self.log('val_f1', val_f1/(len(outs)))
 
     def test_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
@@ -111,8 +114,8 @@ def cli_main():
     num_tags = len(id2tag)
 
     model = MultilingualBertTokenClassifier(num_labels=num_tags, tokenizer=tokenizer, batch_size=args.batch_size)
-    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode='min', patience=2)
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_loss", mode='min', verbose=True)
+    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_f1", mode='max', patience=2)
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_f1", mode='max', verbose=True)
 
     trainer = pl.Trainer.from_argparse_args(
         args, callbacks=[early_stopping_callback, checkpoint_callback]
