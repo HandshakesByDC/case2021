@@ -45,7 +45,7 @@ $(UNITRANS_DATA_DIR)/dict: | $(UNITRANS_DATA_DIR)
 	cd $(UNITRANS_DATA_DIR) && mkdir dict
 
 $(UNITRANS_TRAIN_DATA): $(UNITRANS_DATA_DIR)/ner/glocon/%/train.txt: $(UNITRANS_DATA_DIR)/ner/glocon/%
-	python -c "from src.dataset import GloconFile; GloconFile.build('data/$*-orig.txt', max_tags=400).save('data/$*-split.txt')"
+	python -c "from src.fileio import GloconFile; GloconFile.build('data/$*-orig.txt', max_tags=400).save('data/$*-split.txt')"
 	ln -sfv ../../../../../../../data/$*-split.txt $@
 	touch data/$*-split.txt
 
@@ -54,7 +54,7 @@ $(UNITRANS_DATA_DIR)/ner/glocon/%: | $(UNITRANS_DATA_DIR)/ner/glocon
 
 $(UNITRANS_DATA_DIR)/ner/glocon:
 	mkdir -p $@
-	python -c "from src.dataset import GloconFile; GloconFile.build('data/en-orig.txt', max_tags=400).tag_map.save('$@/labels.txt')"
+	python -c "from src.utils import TagMap; TagMap.build('data/en-orig.txt').save('$@/labels.txt')"
 
 .PHONY: MUSE
 MUSE: $(MUSE_DATA_DIR)/crosslingual

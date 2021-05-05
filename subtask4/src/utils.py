@@ -20,5 +20,7 @@ class TagMap(metaclass=Singleton):
     def build(cls, filepath):
         with open(filepath, 'r') as f:
             tags = [line.strip() for line in f]
+            if '\t' in tags[0]:
+                tags = sorted(set([t.split('\t')[1] for t in tags if '\t' in t]))
 
         return cls(tags)
