@@ -6,17 +6,23 @@ import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
-from transformers import AdamW, BertTokenizerFast, BertForTokenClassification
+from transformers import (
+    AdamW,
+    BertTokenizerFast,
+    BertForTokenClassification,
+    XLMRobertaTokenizerFast,
+    XLMRobertaForTokenClassification,
+)
 
 from ..dataset import GloconDataset, conll_evaluate, TagMap
 from ..models.viterbi_decoder import ViterbiDecoder
 
 class MultilingualBertTokenClassifier(pl.LightningModule):
-    def __init__(self, tokenizer, tag_map, batch_size, use_viterbi=True):
+    def __init__(self, model_class, model_string, tokenizer, tag_map, batch_size, use_viterbi=False):
         super().__init__()
         self.tag_map = tag_map
         num_labels = len(self.tag_map.tag2id)
-        self.bert = BertForTokenClassification.from_pretrained('bert-base-multilingual-cased', num_labels=num_labels)
+        self.bert = model_class.from_pretrained(model_string, num_labels=num_labels)
         self.tokenizer = tokenizer
         self.batch_size = batch_size
         self.use_viterbi = use_viterbi
@@ -118,9 +124,19 @@ def cli_main():
     parser = pl.Trainer.add_argparse_args(parser)
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--load", type=str, default=None)
+    parser.add_argument("--model_name", type=str, default='bert')
     args = parser.parse_args()
 
-    tokenizer = BertTokenizerFast.from_pretrained('bert-base-multilingual-cased')
+    if args.model_name == 'bert':
+        tokenizer_class = BertTokenizerFast
+        model_class = BertForTokenClassification
+        model_string = "bert-base-multilingual-cased"
+    elif args.model_name == 'roberta':
+        tokenizer_class = XLMRobertaTokenizerFast
+        model_class = XLMRobertaForTokenClassification
+        model_string = "xlm-roberta-base"
+
+    tokenizer = tokenizer_class.from_pretrained(model_string)
 
     tag_map = TagMap.build('src/models/UniTrans/data/ner/glocon/labels.txt')
 
@@ -135,17 +151,31 @@ def cli_main():
     )
 
     if args.load is None:
-        model = MultilingualBertTokenClassifier(tokenizer=tokenizer, tag_map=tag_map, batch_size=args.batch_size)
+        model = MultilingualBertTokenClassifier(
+            model_class=model_class,
+            model_string=model_string,
+            tokenizer=tokenizer,
+            tag_map=tag_map,
+            batch_size=args.batch_size
+        )
         trainer.fit(model)
-        model = MultilingualBertTokenClassifier.load_from_checkpoint(trainer.checkpoint_callback.best_model_path,
-                                                                    tokenizer=tokenizer,
-                                                                    tag_map=tag_map,
-                                                                    batch_size=args.batch_size)
+        model = MultilingualBertTokenClassifier.load_from_checkpoint(
+            trainer.checkpoint_callback.best_model_path,
+            model_class=model_class,
+            model_string=model_string,
+            tokenizer=tokenizer,
+            tag_map=tag_map,
+            batch_size=args.batch_size
+        )
     else:
-        model = MultilingualBertTokenClassifier.load_from_checkpoint(args.load,
-                                                                    tokenizer=tokenizer,
-                                                                    tag_map=tag_map,
-                                                                    batch_size=args.batch_size)
+        model = MultilingualBertTokenClassifier.load_from_checkpoint(
+            args.load,
+            model_class=model_class,
+            model_string=model_string,
+            tokenizer=tokenizer,
+            tag_map=tag_map,
+            batch_size=args.batch_size
+        )
 
 
 if __name__ == "__main__":
