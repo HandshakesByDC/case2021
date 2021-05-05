@@ -2,7 +2,7 @@ import torch
 
 from sklearn.model_selection import train_test_split
 
-from .fileio import GloconFile
+from fileio import GloconFile
 
 class GloconDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels):

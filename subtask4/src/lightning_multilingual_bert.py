@@ -14,8 +14,10 @@ from transformers import (
     XLMRobertaForTokenClassification,
 )
 
-from ..dataset import GloconDataset, conll_evaluate, TagMap
-from ..models.viterbi_decoder import ViterbiDecoder
+from dataset import GloconDataset
+from conlleval import evaluate as conll_evaluate
+from utils import TagMap
+from viterbi_decoder import ViterbiDecoder
 
 class MultilingualBertTokenClassifier(pl.LightningModule):
     def __init__(self, model_class, model_string, tokenizer, tag_map,
@@ -193,7 +195,7 @@ def cli_main():
     trainer = pl.Trainer.from_argparse_args(
         args, callbacks=[early_stopping_callback, checkpoint_callback],
         gpus=1,
-        accumulate_grad_batches=8,
+        accumulate_grad_batches=16,
         precision=16,
     )
 
