@@ -18,7 +18,8 @@ from ..dataset import GloconDataset, conll_evaluate, TagMap
 from ..models.viterbi_decoder import ViterbiDecoder
 
 class MultilingualBertTokenClassifier(pl.LightningModule):
-    def __init__(self, model_class, model_string, tokenizer, tag_map, batch_size, use_viterbi=False):
+    def __init__(self, model_class, model_string, tokenizer, tag_map,
+                 batch_size, use_viterbi=False, translate_data=False):
         super().__init__()
         self.tag_map = tag_map
         num_labels = len(self.tag_map.tag2id)
@@ -27,6 +28,7 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         self.batch_size = batch_size
         self.use_viterbi = use_viterbi
         self.viterbi_decoder = None
+        self.translate_data = translate_data
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=5e-5)
@@ -38,12 +40,15 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         return embedding
 
     def train_dataloader(self):
+        train_datasets = []
         en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
-        es_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
-        pt_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
-        # train_dataset = torch.utils.data.ConcatDataset([en_dataset, es_dataset,
-                                                       # pt_dataset])
-        train_dataset = en_dataset
+        train_datasets.append(en_dataset)
+        if self.translate_data:
+            es_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
+            train_datasets.append(es_dataset)
+            pt_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
+            train_datasets.append(pt_dataset)
+        train_dataset = torch.utils.data.ConcatDataset(train_datasets)
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         return train_loader
 
