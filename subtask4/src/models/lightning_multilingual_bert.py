@@ -201,14 +201,16 @@ def cli_main():
             batch_size=args.batch_size
         )
         trainer.fit(model)
-        model = MultilingualBertTokenClassifier.load_from_checkpoint(
-            trainer.checkpoint_callback.best_model_path,
-            model_class=model_class,
-            model_string=model_string,
-            tokenizer=tokenizer,
-            tag_map=tag_map,
-            batch_size=args.batch_size
-        )
+        if not args.fast_dev_run:
+            print(f"Load from checkpoint {trainer.checkpoint_callback.best_model_path}")
+            model = MultilingualBertTokenClassifier.load_from_checkpoint(
+                trainer.checkpoint_callback.best_model_path,
+                model_class=model_class,
+                model_string=model_string,
+                tokenizer=tokenizer,
+                tag_map=tag_map,
+                batch_size=args.batch_size
+            )
     else:
         model = MultilingualBertTokenClassifier.load_from_checkpoint(
             args.load,
