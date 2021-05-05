@@ -109,12 +109,54 @@ class MultilingualBertTokenClassifier(pl.LightningModule):
         self.log('val_loss', val_loss)
         self.log('val_f1', val_f1/(len(outs)))
 
-    def test_step(self, batch, batch_idx):
+    def test_dataloader(self):
+        _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
+        es_dataset = GloconDataset.build('data/es-orig.txt', self.tokenizer, self.tag_map)
+        pt_dataset = GloconDataset.build('data/pt-orig.txt', self.tokenizer, self.tag_map)
+
+        en_loader = DataLoader(en_dataset, batch_size=self.batch_size, shuffle=False)
+        es_loader = DataLoader(es_dataset, batch_size=self.batch_size, shuffle=False)
+        pt_loader = DataLoader(pt_dataset, batch_size=self.batch_size, shuffle=False)
+
+        return [en_loader, es_loader, pt_loader]
+
+    def test_step(self, batch, batch_idx, dataloader_idx):
+        self.viterbi_decoder = ViterbiDecoder(self.tag_map.id2tag, -100, self.device)
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
-        outputs = self.transformer(
-            input_ids, attention_mask=attention_mask
+        labels = batch["labels"]
+        outputs = self.bert(
+            input_ids, attention_mask=attention_mask, labels=labels
         )
+        batch_labels = labels[attention_mask > 0]
+        final_labels = batch_labels[batch_labels > -1]
+
+        log_probs = torch.nn.functional.log_softmax(outputs.logits.detach(), dim=-1)
+        batch_preds = self.viterbi_decoder.forward(log_probs, attention_mask)
+        final_preds = torch.tensor(sum(map(lambda x: x, batch_preds), []))[batch_labels > -1]
+
+        return {
+            f"test_loss_{dataloader_idx}": outputs.loss.item(),
+            f"test_preds_{dataloader_idx}": final_preds.tolist(),
+            f"test_labels_{dataloader_idx}": final_labels.tolist(),
+        }
+
+    def test_epoch_end(self, outs):
+        id2tag = self.tag_map.id2tag
+        test_loss = 0
+        test_f1 = 0
+        for i, out in enumerate(outs):
+            test_loss += sum(map(lambda x: x[f"test_loss_{i}"], out), 0)
+
+            preds = sum(map(lambda x: x[f"test_preds_{i}"], out), [])
+            labels = sum(map(lambda x: x[f"test_labels_{i}"], out), [])
+            preds_tag = [id2tag[i] for i in preds]
+            labels_tag = [id2tag[i] for i in labels]
+            _, _, f1 = conll_evaluate(labels_tag, preds_tag)
+            test_f1 += f1
+
+        self.log('test_loss', test_loss)
+        self.log('test_f1', test_f1/(len(outs)))
 
 def cli_main():
     pl.seed_everything(1234)
@@ -177,6 +219,7 @@ def cli_main():
             batch_size=args.batch_size
         )
 
+    trainer.test(model)
 
 if __name__ == "__main__":
     cli_main()
