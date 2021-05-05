@@ -19,18 +19,36 @@ from conlleval import evaluate as conll_evaluate
 from utils import TagMap
 from viterbi_decoder import ViterbiDecoder
 
-class MultilingualBertTokenClassifier(pl.LightningModule):
-    def __init__(self, model_class, model_string, tokenizer, tag_map,
-                 batch_size, use_viterbi=False, translate_data=False):
+class MultilingualTokenClassifier(pl.LightningModule):
+    def __init__(self, model_name, labels_path, batch_size, use_viterbi, translate_data, **kwargs):
         super().__init__()
-        self.tag_map = tag_map
+        self.save_hyperparameters()
+        if model_name == 'bert':
+            tokenizer_class = BertTokenizerFast
+            model_class = BertForTokenClassification
+            model_string = "bert-base-multilingual-cased"
+        elif model_name == 'roberta':
+            tokenizer_class = XLMRobertaTokenizerFast
+            model_class = XLMRobertaForTokenClassification
+            model_string = "xlm-roberta-base"
+
+        self.tag_map = TagMap.build(labels_path)
         num_labels = len(self.tag_map.tag2id)
         self.bert = model_class.from_pretrained(model_string, num_labels=num_labels)
-        self.tokenizer = tokenizer
+        self.tokenizer = tokenizer_class.from_pretrained(model_string)
         self.batch_size = batch_size
         self.use_viterbi = use_viterbi
         self.viterbi_decoder = None
         self.translate_data = translate_data
+
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("MultilingualTokenClassifier")
+        parser.add_argument('--model_name', type=str, default='bert')
+        parser.add_argument('--labels_path', type=str, default='src/models/UniTrans/data/ner/glocon/labels.txt')
+        parser.add_argument('--batch_size', type=int, default=2)
+        parser.add_argument('--use_viterbi', type=bool, default=False)
+        parser.add_argument('--translate_data', type=bool, default=False)
+        return parent_parser
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=5e-5)
@@ -170,24 +188,10 @@ def cli_main():
 
     # args
     parser = ArgumentParser()
-    parser = pl.Trainer.add_argparse_args(parser)
-    parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--load", type=str, default=None)
-    parser.add_argument("--model_name", type=str, default='bert')
+    parser = MultilingualTokenClassifier.add_model_specific_args(parser)
+    parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args()
-
-    if args.model_name == 'bert':
-        tokenizer_class = BertTokenizerFast
-        model_class = BertForTokenClassification
-        model_string = "bert-base-multilingual-cased"
-    elif args.model_name == 'roberta':
-        tokenizer_class = XLMRobertaTokenizerFast
-        model_class = XLMRobertaForTokenClassification
-        model_string = "xlm-roberta-base"
-
-    tokenizer = tokenizer_class.from_pretrained(model_string)
-
-    tag_map = TagMap.build('src/models/UniTrans/data/ner/glocon/labels.txt')
 
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_f1", mode='max', patience=2)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_f1", mode='max', verbose=True)
@@ -200,32 +204,16 @@ def cli_main():
     )
 
     if args.load is None:
-        model = MultilingualBertTokenClassifier(
-            model_class=model_class,
-            model_string=model_string,
-            tokenizer=tokenizer,
-            tag_map=tag_map,
-            batch_size=args.batch_size
-        )
+        model = MultilingualTokenClassifier(**vars(args))
         trainer.fit(model)
         if not args.fast_dev_run:
             print(f"Load from checkpoint {trainer.checkpoint_callback.best_model_path}")
-            model = MultilingualBertTokenClassifier.load_from_checkpoint(
+            model = MultilingualTokenClassifier.load_from_checkpoint(
                 trainer.checkpoint_callback.best_model_path,
-                model_class=model_class,
-                model_string=model_string,
-                tokenizer=tokenizer,
-                tag_map=tag_map,
-                batch_size=args.batch_size
             )
     else:
-        model = MultilingualBertTokenClassifier.load_from_checkpoint(
+        model = MultilingualTokenClassifier.load_from_checkpoint(
             args.load,
-            model_class=model_class,
-            model_string=model_string,
-            tokenizer=tokenizer,
-            tag_map=tag_map,
-            batch_size=args.batch_size
         )
 
     trainer.test(model)
