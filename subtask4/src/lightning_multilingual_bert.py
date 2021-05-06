@@ -1,3 +1,4 @@
+import os
 from argparse import ArgumentParser
 
 from tqdm import tqdm
@@ -8,8 +9,10 @@ import pytorch_lightning as pl
 
 from transformers import (
     AdamW,
+    BertConfig,
     BertTokenizerFast,
     BertForTokenClassification,
+    XLMRobertaConfig,
     XLMRobertaTokenizerFast,
     XLMRobertaForTokenClassification,
 )
@@ -23,11 +26,19 @@ class MultilingualTokenClassifier(pl.LightningModule):
     def __init__(self, model_name, labels_path, batch_size, use_viterbi, translate_data, **kwargs):
         super().__init__()
         self.save_hyperparameters()
+        """@nni.variable(nni.choice(0.1,0.2,0.3),name=hidden_dropout_prob)"""
+        hidden_dropout_prob = 0.1
+        """@nni.variable(nni.choice(0.1,0.2,0.3),name=attention_probs_dropout_probs)"""
+        attention_probs_dropout_probs = 0.1
         if model_name == 'bert':
+            config = BertConfig(hidden_dropout_prob=hidden_dropout_prob,
+                                attention_probs_dropout_probs=attention_probs_dropout_probs)
             tokenizer_class = BertTokenizerFast
             model_class = BertForTokenClassification
             model_string = "bert-base-multilingual-cased"
         elif model_name == 'roberta':
+            config = XLMRobertaConfig(hidden_dropout_prob=hidden_dropout_prob,
+                                      attention_probs_dropout_probs=attention_probs_dropout_probs)
             tokenizer_class = XLMRobertaTokenizerFast
             model_class = XLMRobertaForTokenClassification
             model_string = "xlm-roberta-base"
@@ -37,21 +48,26 @@ class MultilingualTokenClassifier(pl.LightningModule):
         self.bert = model_class.from_pretrained(model_string, num_labels=num_labels)
         self.tokenizer = tokenizer_class.from_pretrained(model_string)
         self.batch_size = batch_size
+        """@nni.variable(nni.choice(True, False),name=self.use_viterbi)"""
         self.use_viterbi = use_viterbi
         self.viterbi_decoder = None
+        """@nni.variable(nni.choice(True, False),name=self.translate_data)"""
         self.translate_data = translate_data
+        # """@nni.variable(nni.choice(5e-3, 1e-4, 5e-4, 1e-5, 5e-5, 1e-6, 5e-6, 1e-7),name=self.learning_rate)"""
+        # """@nni.variable(nni.loguniform(1e-6, 5e-4),name=self.learning_rate)"""
+        self.learning_rate = 5e-5
 
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("MultilingualTokenClassifier")
         parser.add_argument('--model_name', type=str, default='bert')
-        parser.add_argument('--labels_path', type=str, default='src/models/UniTrans/data/ner/glocon/labels.txt')
+        parser.add_argument('--labels_path', type=str, default='data/labels.txt')
         parser.add_argument('--batch_size', type=int, default=2)
         parser.add_argument('--use_viterbi', type=bool, default=False)
         parser.add_argument('--translate_data', type=bool, default=False)
         return parent_parser
 
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=5e-5)
+        optimizer = AdamW(self.parameters(), lr=self.learning_rate)
         return optimizer
 
     def forward(self, x):
@@ -64,10 +80,10 @@ class MultilingualTokenClassifier(pl.LightningModule):
         en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
         train_datasets.append(en_dataset)
         if self.translate_data:
-            es_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2es/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
-            train_datasets.append(es_dataset)
-            pt_dataset, _ = GloconDataset.build('src/models/UniTrans/data/ner/glocon/en2pt/train.txt', self.tokenizer, self.tag_map, test_split=0.05)
-            train_datasets.append(pt_dataset)
+            en2es_dataset, _ = GloconDataset.build('data/en2es.txt', self.tokenizer, self.tag_map, test_split=0.05)
+            train_datasets.append(en2es_dataset)
+            en2pt_dataset, _ = GloconDataset.build('data/en2pt.txt', self.tokenizer, self.tag_map, test_split=0.05)
+            train_datasets.append(en2pt_dataset)
         train_dataset = torch.utils.data.ConcatDataset(train_datasets)
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         return train_loader
@@ -131,8 +147,10 @@ class MultilingualTokenClassifier(pl.LightningModule):
             _, _, f1 = conll_evaluate(labels_tag, preds_tag)
             val_f1 += f1
 
+        avg_val_f1 = val_f1/len(outs)
+        """@nni.report_intermediate_result(avg_val_f1)"""
         self.log('val_loss', val_loss)
-        self.log('val_f1', val_f1/(len(outs)))
+        self.log('val_f1', avg_val_f1)
 
     def test_dataloader(self):
         _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
@@ -180,8 +198,12 @@ class MultilingualTokenClassifier(pl.LightningModule):
             _, _, f1 = conll_evaluate(labels_tag, preds_tag)
             test_f1 += f1
 
+        avg_test_f1 = test_f1/len(outs)
+        """@nni.report_final_result(avg_test_f1)"""
         self.log('test_loss', test_loss)
-        self.log('test_f1', test_f1/(len(outs)))
+        self.log('test_f1', avg_test_f1)
+
+        os.system(f"rm {self.trainer.checkpoint_callback.best_model_path}")
 
 def cli_main():
     pl.seed_everything(1234)
@@ -193,14 +215,23 @@ def cli_main():
     parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args()
 
-    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_f1", mode='max', patience=2)
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_f1", mode='max', verbose=True)
+    early_stopping_callback = pl.callbacks.EarlyStopping(monitor='val_f1', mode='max', patience=2)
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor='val_f1', mode='max', verbose=True)
+
+    """@nni.variable(nni.choice(16, 32),name=accumulate_grad_batches)"""
+    accumulate_grad_batches=args.accumulate_grad_batches
+    """@nni.variable(nni.choice(True, False),name=stochastic_weight_avg)"""
+    stochastic_weight_avg=args.stochastic_weight_avg
+    """@nni.variable(nni.choice(0, 0.5, 1),name=gradient_clip_val)"""
+    gradient_clip_val=args.gradient_clip_val
 
     trainer = pl.Trainer.from_argparse_args(
         args, callbacks=[early_stopping_callback, checkpoint_callback],
         gpus=1,
-        accumulate_grad_batches=16,
         precision=16,
+        accumulate_grad_batches=accumulate_grad_batches,
+        stochastic_weight_avg=stochastic_weight_avg,
+        gradient_clip_val=gradient_clip_val
     )
 
     if args.load is None:
@@ -219,4 +250,5 @@ def cli_main():
     trainer.test(model)
 
 if __name__ == "__main__":
+    """@nni.get_next_parameter()"""
     cli_main()
