@@ -77,6 +77,21 @@ $(MUSE_DATA_DIR)/%.5000-6500.txt: | $(MUSE_DATA_DIR)
 $(MUSE_DATA_DIR):
 	mkdir -p $(MUSE_DATA_DIR)
 
+# NNI
+
+.PHONY: nni-start nni-stop
+nni-start: nni/src nni/data
+	nnictl stop
+	cd nni/ && nnictl create -c nni-config.yml
+
+nni/%: %/
+	rm -rf $@
+	cp -r $< $@
+
+nni-stop:
+	nnictl stop
+	rm -rf /tmp/*/nni/
+
 clean:
 	rm -rf data
 	rm -rf UniTrans/data/ner/glocon

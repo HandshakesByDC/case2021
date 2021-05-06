@@ -130,3 +130,6 @@ dmypy.json
 
 # data
 data/
+
+# nni-folder
+*/nni/src/
