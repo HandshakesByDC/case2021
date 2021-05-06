@@ -1,4 +1,5 @@
 import os
+import json
 from argparse import ArgumentParser
 
 from tqdm import tqdm
@@ -23,22 +24,19 @@ from utils import TagMap
 from viterbi_decoder import ViterbiDecoder
 
 class MultilingualTokenClassifier(pl.LightningModule):
-    def __init__(self, model_name, labels_path, batch_size, use_viterbi, translate_data, **kwargs):
+    def __init__(self, model_name, labels_path, batch_size, translate_data,
+                 hidden_dropout_prob, **kwargs):
         super().__init__()
         self.save_hyperparameters()
         """@nni.variable(nni.choice(0.1,0.2,0.3),name=hidden_dropout_prob)"""
-        hidden_dropout_prob = 0.1
-        """@nni.variable(nni.choice(0.1,0.2,0.3),name=attention_probs_dropout_probs)"""
-        attention_probs_dropout_probs = 0.1
+        hidden_dropout_prob = hidden_dropout_prob
         if model_name == 'bert':
-            config = BertConfig(hidden_dropout_prob=hidden_dropout_prob,
-                                attention_probs_dropout_probs=attention_probs_dropout_probs)
+            config = BertConfig(hidden_dropout_prob=hidden_dropout_prob)
             tokenizer_class = BertTokenizerFast
             model_class = BertForTokenClassification
             model_string = "bert-base-multilingual-cased"
         elif model_name == 'roberta':
-            config = XLMRobertaConfig(hidden_dropout_prob=hidden_dropout_prob,
-                                      attention_probs_dropout_probs=attention_probs_dropout_probs)
+            config = XLMRobertaConfig(hidden_dropout_prob=hidden_dropout_prob)
             tokenizer_class = XLMRobertaTokenizerFast
             model_class = XLMRobertaForTokenClassification
             model_string = "xlm-roberta-base"
@@ -48,8 +46,6 @@ class MultilingualTokenClassifier(pl.LightningModule):
         self.bert = model_class.from_pretrained(model_string, num_labels=num_labels)
         self.tokenizer = tokenizer_class.from_pretrained(model_string)
         self.batch_size = batch_size
-        """@nni.variable(nni.choice(True, False),name=self.use_viterbi)"""
-        self.use_viterbi = use_viterbi
         self.viterbi_decoder = None
         """@nni.variable(nni.choice(True, False),name=self.translate_data)"""
         self.translate_data = translate_data
@@ -62,8 +58,8 @@ class MultilingualTokenClassifier(pl.LightningModule):
         parser.add_argument('--model_name', type=str, default='bert')
         parser.add_argument('--labels_path', type=str, default='data/labels.txt')
         parser.add_argument('--batch_size', type=int, default=2)
-        parser.add_argument('--use_viterbi', type=bool, default=False)
-        parser.add_argument('--translate_data', type=bool, default=False)
+        parser.add_argument('--translate_data', action='store_true')
+        parser.add_argument('--hidden_dropout_prob', type=float, default=0.1)
         return parent_parser
 
     def configure_optimizers(self):
@@ -95,7 +91,7 @@ class MultilingualTokenClassifier(pl.LightningModule):
         outputs = self.bert(
             input_ids, attention_mask=attention_mask, labels=labels
         )
-        return { "loss": outputs.loss}
+        return { "loss": outputs.loss }
 
     def val_dataloader(self):
         _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
@@ -109,8 +105,6 @@ class MultilingualTokenClassifier(pl.LightningModule):
         return [en_loader, es_loader, pt_loader]
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
-        if self.use_viterbi and self.viterbi_decoder is None:
-            self.viterbi_decoder = ViterbiDecoder(self.tag_map.id2tag, -100, self.device)
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
@@ -119,13 +113,9 @@ class MultilingualTokenClassifier(pl.LightningModule):
         )
         batch_labels = labels[attention_mask > 0]
         final_labels = batch_labels[batch_labels > -1]
-        if self.use_viterbi:
-            log_probs = torch.nn.functional.log_softmax(outputs.logits.detach(), dim=-1)
-            batch_preds = self.viterbi_decoder.forward(log_probs, attention_mask)
-            final_preds = torch.tensor(sum(map(lambda x: x, batch_preds), []))[batch_labels > -1]
-        else:
-            batch_preds = torch.argmax(outputs.logits, 2)[attention_mask > 0]
-            final_preds = batch_preds[batch_labels > -1]
+
+        batch_preds = torch.argmax(outputs.logits, 2)[attention_mask > 0]
+        final_preds = batch_preds[batch_labels > -1]
 
         return {
             f"val_loss_{dataloader_idx}": outputs.loss.item(),
@@ -214,6 +204,7 @@ def cli_main():
     parser = MultilingualTokenClassifier.add_model_specific_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args()
+    print(json.dumps(dict(sorted(vars(args).items())), indent=2))
 
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor='val_f1', mode='max', patience=2)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor='val_f1', mode='max', verbose=True)
