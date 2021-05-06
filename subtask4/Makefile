@@ -56,6 +56,9 @@ $(UNITRANS_DATA_DIR)/ner/glocon:
 	mkdir -p $@
 	python -c "from src.utils import TagMap; TagMap.build('data/en-orig.txt').save('$@/labels.txt')"
 
+data/labels.txt:
+	python -c "from src.utils import TagMap; TagMap.build('data/en-orig.txt').save('$@')"
+
 .PHONY: MUSE
 MUSE: $(MUSE_DATA_DIR)/crosslingual
 
