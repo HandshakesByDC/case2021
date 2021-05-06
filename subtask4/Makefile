@@ -15,7 +15,7 @@ $(ENV)/$(MARKER): $(REQUIREMENTS_TXT) | $(ENV)
 $(ENV):
 	virtualenv $(ENVDIR)
 
-UNITRANS_DATA_DIR=src/models/UniTrans/data
+UNITRANS_DATA_DIR=UniTrans/data
 UNITRANS_TO_MUSE=../MUSE/data
 MUSE_DATA_DIR=$(UNITRANS_DATA_DIR)/$(UNITRANS_TO_MUSE)
 LANGUAGES=en es pt
@@ -46,7 +46,7 @@ $(UNITRANS_DATA_DIR)/dict: | $(UNITRANS_DATA_DIR)
 
 $(UNITRANS_TRAIN_DATA): $(UNITRANS_DATA_DIR)/ner/glocon/%/train.txt: $(UNITRANS_DATA_DIR)/ner/glocon/%
 	python -c "from src.fileio import GloconFile; GloconFile.build('data/$*-orig.txt', max_tags=400).save('data/$*-split.txt')"
-	ln -sfv ../../../../../../../data/$*-split.txt $@
+	ln -sfv ../../../../../data/$*-split.txt $@
 	touch data/$*-split.txt
 
 $(UNITRANS_DATA_DIR)/ner/glocon/%: | $(UNITRANS_DATA_DIR)/ner/glocon
@@ -76,4 +76,4 @@ $(MUSE_DATA_DIR):
 
 clean:
 	rm -rf data
-	rm -rf src/models/UniTrans/data/ner/glocon
+	rm -rf UniTrans/data/ner/glocon
