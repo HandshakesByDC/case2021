@@ -225,6 +225,7 @@ def cli_main():
     # args
     parser = ArgumentParser()
     parser.add_argument("--load", type=str, default=None)
+    parser.add_argument("--finetune", action='store_true')
     parser.add_argument("--delete_checkpoint", action='store_true')
     parser = MultilingualTokenClassifier.add_model_specific_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
@@ -262,6 +263,13 @@ def cli_main():
         model = MultilingualTokenClassifier.load_from_checkpoint(
             args.load,
         )
+        if args.finetune:
+            model_args = [x.dest for x in vars(parser._action_groups[2])['_group_actions']]
+            for k in model_args:
+                if hasattr(model, k) and getattr(model, k) != vars(args)[k]:
+                        print(f"Change model.{k} from {getattr(model,k)} -> {vars(args)[k]}")
+                        setattr(model, k, vars(args)[k])
+            trainer.fit(model)
 
     trainer.test(model)
     if args.delete_checkpoint:
