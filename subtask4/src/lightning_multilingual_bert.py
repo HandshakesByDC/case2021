@@ -24,7 +24,7 @@ from utils import TagMap
 from viterbi_decoder import ViterbiDecoder
 
 class MultilingualTokenClassifier(pl.LightningModule):
-    def __init__(self, model_name, labels_path, batch_size, translate_data,
+    def __init__(self, model_name, labels_path, batch_size, source_data, translate_data,
                  hidden_dropout_prob, **kwargs):
         super().__init__()
         self.save_hyperparameters()
@@ -47,7 +47,7 @@ class MultilingualTokenClassifier(pl.LightningModule):
         self.tokenizer = tokenizer_class.from_pretrained(model_string)
         self.batch_size = batch_size
         self.viterbi_decoder = None
-        """@nni.variable(nni.choice(True, False),name=self.translate_data)"""
+        self.source_data = source_data
         self.translate_data = translate_data
         # """@nni.variable(nni.choice(5e-3, 1e-4, 5e-4, 1e-5, 5e-5, 1e-6, 5e-6, 1e-7),name=self.learning_rate)"""
         # """@nni.variable(nni.loguniform(1e-6, 5e-4),name=self.learning_rate)"""
@@ -58,6 +58,7 @@ class MultilingualTokenClassifier(pl.LightningModule):
         parser.add_argument('--model_name', type=str, default='bert')
         parser.add_argument('--labels_path', type=str, default='data/labels.txt')
         parser.add_argument('--batch_size', type=int, default=2)
+        parser.add_argument('--source_data', action='store_true')
         parser.add_argument('--translate_data', action='store_true')
         parser.add_argument('--hidden_dropout_prob', type=float, default=0.1)
         return parent_parser
@@ -73,13 +74,16 @@ class MultilingualTokenClassifier(pl.LightningModule):
 
     def train_dataloader(self):
         train_datasets = []
-        en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
-        train_datasets.append(en_dataset)
+        if self.source_data:
+            en_dataset, _ = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
+            train_datasets.append(en_dataset)
         if self.translate_data:
             en2es_dataset, _ = GloconDataset.build('data/en2es.txt', self.tokenizer, self.tag_map, test_split=0.05)
             train_datasets.append(en2es_dataset)
             en2pt_dataset, _ = GloconDataset.build('data/en2pt.txt', self.tokenizer, self.tag_map, test_split=0.05)
             train_datasets.append(en2pt_dataset)
+
+        assert(len(train_datasets) > 0)
         train_dataset = torch.utils.data.ConcatDataset(train_datasets)
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         return train_loader
@@ -94,15 +98,23 @@ class MultilingualTokenClassifier(pl.LightningModule):
         return { "loss": outputs.loss }
 
     def val_dataloader(self):
-        _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
-        es_dataset = GloconDataset.build('data/es-orig.txt', self.tokenizer, self.tag_map)
-        pt_dataset = GloconDataset.build('data/pt-orig.txt', self.tokenizer, self.tag_map)
+        val_loaders = []
+        if self.source_data:
+            _, en_dataset = GloconDataset.build('data/en-orig.txt', self.tokenizer, self.tag_map, test_split=0.05)
+            en_loader = DataLoader(en_dataset, batch_size=self.batch_size, shuffle=False)
+            val_loaders.append(en_loader)
 
-        en_loader = DataLoader(en_dataset, batch_size=self.batch_size, shuffle=False)
-        es_loader = DataLoader(es_dataset, batch_size=self.batch_size, shuffle=False)
-        pt_loader = DataLoader(pt_dataset, batch_size=self.batch_size, shuffle=False)
+        if self.translate_data:
+            es_dataset = GloconDataset.build('data/es-orig.txt', self.tokenizer, self.tag_map)
+            pt_dataset = GloconDataset.build('data/pt-orig.txt', self.tokenizer, self.tag_map)
 
-        return [en_loader, es_loader, pt_loader]
+            es_loader = DataLoader(es_dataset, batch_size=self.batch_size, shuffle=False)
+            pt_loader = DataLoader(pt_dataset, batch_size=self.batch_size, shuffle=False)
+
+            val_loaders.append(es_loader)
+            val_loaders.append(pt_loader)
+
+        return val_loaders
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         input_ids = batch["input_ids"]
