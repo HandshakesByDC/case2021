@@ -68,8 +68,14 @@ class MultilingualTokenClassifier(pl.LightningModule):
 
     def forward(self, x):
         # in lightning, forward defines the prediction/inference actions
-        embedding = self.bert(x["input_ids"], attention_mask=x["attention_mask"])
-        return embedding
+        input_ids = x["input_ids"]
+        attention_mask = x["attention_mask"]
+        outputs = self.bert(
+            input_ids, attention_mask=attention_mask
+        )
+        log_probs = torch.nn.functional.log_softmax(outputs.logits.detach(), dim=-1)
+        batch_preds = self.viterbi_decoder.forward(log_probs, attention_mask)
+        return batch_preds
 
     def train_dataloader(self):
         train_datasets = []
@@ -224,6 +230,7 @@ def cli_main():
     parser = ArgumentParser()
     parser.add_argument("--load", type=str, default=None)
     parser.add_argument("--finetune", action='store_true')
+    parser.add_argument("--predict", action='store_true')
     parser.add_argument("--delete_checkpoint", action='store_true')
     parser = MultilingualTokenClassifier.add_model_specific_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
@@ -263,12 +270,27 @@ def cli_main():
             trainer.fit(model)
 
     trainer.test(model)
-    en_predict_dataset = GloconDataset.build('data/en-test.txt',
-                                             model.tokenizer, model.tag_map)
-    es_predict_dataset = GloconDataset.build('data/es-test.txt',
-                                             model.tokenizer, model.tag_map)
-    pt_predict_dataset = GloconDataset.build('data/pt-test.txt',
-                                             model.tokenizer, model.tag_map)
+
+    if args.predict:
+        en_predict_dataset = GloconDataset.build('data/en-test.txt',
+                                                model.tokenizer, model.tag_map)
+        es_predict_dataset = GloconDataset.build('data/es-test.txt',
+                                                model.tokenizer, model.tag_map)
+        pt_predict_dataset = GloconDataset.build('data/pt-test.txt',
+                                                model.tokenizer, model.tag_map)
+
+        en_predict_loader = DataLoader(en_predict_dataset, batch_size=model.batch_size, shuffle=False)
+        es_predict_loader = DataLoader(es_predict_dataset, batch_size=model.batch_size, shuffle=False)
+        pt_predict_loader = DataLoader(pt_predict_dataset, batch_size=model.batch_size, shuffle=False)
+
+        preds = trainer.predict(model, dataloaders=[en_predict_loader, es_predict_loader, pt_predict_loader])
+        en_labels = sum(map(lambda x: x, preds[0]), [])
+        es_labels = sum(map(lambda x: x, preds[1]), [])
+        pt_labels = sum(map(lambda x: x, preds[2]), [])
+        en_predict_dataset.save(en_labels, model.tag_map, "predict-en.txt")
+        es_predict_dataset.save(es_labels, model.tag_map, "predict-es.txt")
+        pt_predict_dataset.save(pt_labels, model.tag_map, "predict-pt.txt")
+
     if args.delete_checkpoint:
         os.system(f"rm {trainer.checkpoint_callback.best_model_path}")
 
