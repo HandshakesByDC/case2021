@@ -28,8 +28,6 @@ class MultilingualTokenClassifier(pl.LightningModule):
                  hidden_dropout_prob, **kwargs):
         super().__init__()
         self.save_hyperparameters()
-        """@nni.variable(nni.choice(0.1,0.2,0.3),name=hidden_dropout_prob)"""
-        hidden_dropout_prob = hidden_dropout_prob
         if model_name == 'bert':
             config = BertConfig(hidden_dropout_prob=hidden_dropout_prob)
             tokenizer_class = BertTokenizerFast
@@ -49,8 +47,6 @@ class MultilingualTokenClassifier(pl.LightningModule):
         self.viterbi_decoder = None
         self.source_data = source_data
         self.translate_data = translate_data
-        # """@nni.variable(nni.choice(5e-3, 1e-4, 5e-4, 1e-5, 5e-5, 1e-6, 5e-6, 1e-7),name=self.learning_rate)"""
-        # """@nni.variable(nni.loguniform(1e-6, 5e-4),name=self.learning_rate)"""
         self.learning_rate = 5e-5
 
     def add_model_specific_args(parent_parser):
@@ -235,20 +231,13 @@ def cli_main():
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor='val_f1', mode='max', patience=2)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor='val_f1', mode='max', verbose=True)
 
-    """@nni.variable(nni.choice(16, 32),name=accumulate_grad_batches)"""
-    accumulate_grad_batches=args.accumulate_grad_batches
-    """@nni.variable(nni.choice(True, False),name=stochastic_weight_avg)"""
-    stochastic_weight_avg=args.stochastic_weight_avg
-    """@nni.variable(nni.choice(0, 0.5, 1),name=gradient_clip_val)"""
-    gradient_clip_val=args.gradient_clip_val
-
     trainer = pl.Trainer.from_argparse_args(
         args, callbacks=[early_stopping_callback, checkpoint_callback],
         gpus=1,
         precision=16,
-        accumulate_grad_batches=accumulate_grad_batches,
-        stochastic_weight_avg=stochastic_weight_avg,
-        gradient_clip_val=gradient_clip_val
+        accumulate_grad_batches=16,
+        stochastic_weight_avg=True,
+        gradient_clip_val=1.0
     )
 
     if args.load is None:
