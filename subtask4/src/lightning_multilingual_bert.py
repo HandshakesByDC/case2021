@@ -116,7 +116,7 @@ class MultilingualTokenClassifier(pl.LightningModule):
 
         return val_loaders
 
-    def validation_step(self, batch, batch_idx, dataloader_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
@@ -139,17 +139,31 @@ class MultilingualTokenClassifier(pl.LightningModule):
         id2tag = self.tag_map.id2tag
         val_loss = 0
         val_f1 = 0
-        for i, out in enumerate(outs):
-            val_loss += sum(map(lambda x: x[f"val_loss_{i}"], out), 0)
+        if isinstance(outs[0], list):
+            is_multiple = True
+        else:
+            is_multiple = False
+        if is_multiple:
+            for i, out in enumerate(outs):
+                val_loss += sum(map(lambda x: x[f"val_loss_{i}"], out), 0)
 
-            preds = sum(map(lambda x: x[f"val_preds_{i}"], out), [])
-            labels = sum(map(lambda x: x[f"val_labels_{i}"], out), [])
+                preds = sum(map(lambda x: x[f"val_preds_{i}"], out), [])
+                labels = sum(map(lambda x: x[f"val_labels_{i}"], out), [])
+                preds_tag = [id2tag[i] for i in preds]
+                labels_tag = [id2tag[i] for i in labels]
+                _, _, f1 = conll_evaluate(labels_tag, preds_tag)
+                val_f1 += f1
+        else:
+            val_loss += sum(map(lambda x: x[f"val_loss_0"], outs), 0)
+
+            preds = sum(map(lambda x: x[f"val_preds_0"], outs), [])
+            labels = sum(map(lambda x: x[f"val_labels_0"], outs), [])
             preds_tag = [id2tag[i] for i in preds]
             labels_tag = [id2tag[i] for i in labels]
             _, _, f1 = conll_evaluate(labels_tag, preds_tag)
             val_f1 += f1
-
-        avg_val_f1 = val_f1/len(outs)
+        len_outs = len(outs) if is_multiple else 1
+        avg_val_f1 = val_f1/len_outs
         """@nni.report_intermediate_result(avg_val_f1)"""
         self.log('val_loss', val_loss)
         self.log('val_f1', avg_val_f1)
