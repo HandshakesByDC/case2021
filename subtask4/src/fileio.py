@@ -14,6 +14,7 @@ class GloconFile:
         raw_docs = re.split(r'\n\t?\n', raw_text)
         token_docs = []
         tag_docs = []
+        print(f"Reading {file_path} -> {len(raw_docs)} docs")
         if '\t' in raw_docs[0].split('\n')[0]:
             labels_exists = True
         else:
@@ -32,12 +33,16 @@ class GloconFile:
                 print(f"Split {len(tokens)} to -> :", end="")
                 sep_idx = [i for i,t in enumerate(tokens) if t == '[SEP]']
                 split_at = sep_idx[len(sep_idx)//2]
+                if split_at > max_tags:
+                    split_at = sep_idx[len(sep_idx)//2 - 1]
                 token_docs.append(tokens[:split_at])
                 tag_docs.append(tags[:split_at])
+                print(f" {len(tokens[:split_at])}, {len(tokens[split_at:])}")
+                # print(f" {len(tokens[:split_at])}, {len(tags[:split_at])}")
+                # print(f" {len(tokens[split_at:])}, {len(tags[split_at:])}")
                 tokens = tokens[split_at:]
                 tokens[0] = 'SAMPLE_START'
                 tags = tags[split_at:]
-                print(f" {len(tokens)}")
             token_docs.append(tokens)
             tag_docs.append(tags)
 

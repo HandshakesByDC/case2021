@@ -273,11 +273,14 @@ def cli_main():
 
     if args.predict:
         en_predict_dataset = GloconDataset.build('data/en-test.txt',
-                                                model.tokenizer, model.tag_map)
+                                                model.tokenizer, model.tag_map,
+                                                max_tags=350)
         es_predict_dataset = GloconDataset.build('data/es-test.txt',
-                                                model.tokenizer, model.tag_map)
+                                                model.tokenizer, model.tag_map,
+                                                max_tags=350)
         pt_predict_dataset = GloconDataset.build('data/pt-test.txt',
-                                                model.tokenizer, model.tag_map)
+                                                model.tokenizer, model.tag_map,
+                                                max_tags=350)
 
         en_predict_loader = DataLoader(en_predict_dataset, batch_size=model.batch_size, shuffle=False)
         es_predict_loader = DataLoader(es_predict_dataset, batch_size=model.batch_size, shuffle=False)
