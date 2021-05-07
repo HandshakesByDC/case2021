@@ -49,6 +49,9 @@ class MultilingualTokenClassifier(pl.LightningModule):
         self.translate_data = translate_data
         self.learning_rate = 5e-5
 
+    def on_post_move_to_device(self):
+        self.viterbi_decoder = ViterbiDecoder(self.tag_map.id2tag, -100, self.device)
+
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("MultilingualTokenClassifier")
         parser.add_argument('--model_name', type=str, default='bert')
@@ -176,7 +179,6 @@ class MultilingualTokenClassifier(pl.LightningModule):
         return [en_loader, es_loader, pt_loader]
 
     def test_step(self, batch, batch_idx, dataloader_idx):
-        self.viterbi_decoder = ViterbiDecoder(self.tag_map.id2tag, -100, self.device)
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
