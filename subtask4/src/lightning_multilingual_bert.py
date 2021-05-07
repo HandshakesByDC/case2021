@@ -263,6 +263,12 @@ def cli_main():
             trainer.fit(model)
 
     trainer.test(model)
+    en_predict_dataset = GloconDataset.build('data/en-test.txt',
+                                             model.tokenizer, model.tag_map)
+    es_predict_dataset = GloconDataset.build('data/es-test.txt',
+                                             model.tokenizer, model.tag_map)
+    pt_predict_dataset = GloconDataset.build('data/pt-test.txt',
+                                             model.tokenizer, model.tag_map)
     if args.delete_checkpoint:
         os.system(f"rm {trainer.checkpoint_callback.best_model_path}")
 

@@ -14,11 +14,18 @@ class GloconFile:
         raw_docs = re.split(r'\n\t?\n', raw_text)
         token_docs = []
         tag_docs = []
+        if '\t' in raw_docs[0].split('\n')[0]:
+            labels_exists = True
+        else:
+            labels_exists = False
         for doc in raw_docs:
             tokens = []
             tags = []
             for line in doc.split('\n'):
-                token, tag = line.split('\t')
+                if labels_exists:
+                    token, tag = line.split('\t')
+                else:
+                    token, tag = line, 'O'
                 tokens.append(token)
                 tags.append(tag)
             while len(tokens) > max_tags:
