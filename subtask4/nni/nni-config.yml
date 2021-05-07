@@ -16,6 +16,6 @@ tuner:
     #choice: maximize, minimize
     optimize_mode: maximize
 trial:
-  command: python src/lightning_multilingual_bert.py --model_name roberta
+  command: python src/lightning_multilingual_bert.py --model_name roberta --delete_checkpoint
   codeDir: .
   gpuNum: 1

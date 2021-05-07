@@ -193,14 +193,13 @@ class MultilingualTokenClassifier(pl.LightningModule):
         self.log('test_loss', test_loss)
         self.log('test_f1', avg_test_f1)
 
-        os.system(f"rm {self.trainer.checkpoint_callback.best_model_path}")
-
 def cli_main():
     pl.seed_everything(1234)
 
     # args
     parser = ArgumentParser()
     parser.add_argument("--load", type=str, default=None)
+    parser.add_argument("--delete_checkpoint", action='store_true')
     parser = MultilingualTokenClassifier.add_model_specific_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -239,6 +238,8 @@ def cli_main():
         )
 
     trainer.test(model)
+    if args.delete_checkpoint:
+        os.system(f"rm {trainer.checkpoint_callback.best_model_path}")
 
 if __name__ == "__main__":
     """@nni.get_next_parameter()"""
