@@ -32,25 +32,32 @@ class GloconFile:
                     token, tag = line, 'O'
                 tokens.append(token)
                 tags.append(tag)
-            while len(tokens) > max_tags:
-                print(f"Split {len(tokens)} to -> :", end="")
+            if max_tags == -1:
                 sep_idx = [i for i,t in enumerate(tokens) if t == '[SEP]']
-                split_at = sep_idx[len(sep_idx)//2]
-                minus = 0
-                while split_at > max_tags:
-                    minus += 1
-                    split_at = sep_idx[len(sep_idx)//2 - minus]
-                print(f"{len(tokens[:split_at])} {len(tokens[split_at:])}")
-                token_docs.append(tokens[:split_at])
-                tag_docs.append(tags[:split_at])
-                print(f" {len(tokens[:split_at])}, {len(tokens[split_at:])}")
-                # print(f" {len(tokens[:split_at])}, {len(tags[:split_at])}")
-                # print(f" {len(tokens[split_at:])}, {len(tags[split_at:])}")
-                tokens = tokens[split_at:]
-                tokens[0] = 'SAMPLE_NOT_START'
-                tags = tags[split_at:]
-            token_docs.append(tokens)
-            tag_docs.append(tags)
+                tokens_split = [tokens[i:j] for i, j in zip([0]+sep_idx, sep_idx+[None])]
+                tags_split = [tags[i:j] for i, j in zip([0]+sep_idx, sep_idx+[None])]
+                for token_split, tag_split in zip(tokens_split, tags_split):
+                    if token_split[0] == '[SEP]':
+                        token_split[0] = 'SAMPLE_NOT_START'
+                    token_docs.append(token_split)
+                    tag_docs.append(tag_split)
+            else:
+                while len(tokens) > max_tags:
+                    print(f"Split {len(tokens)} to -> :", end="")
+                    sep_idx = [i for i,t in enumerate(tokens) if t == '[SEP]']
+                    split_at = sep_idx[len(sep_idx)//2]
+                    minus = 0
+                    while split_at > max_tags:
+                        minus += 1
+                        split_at = sep_idx[len(sep_idx)//2 - minus]
+                    print(f"{len(tokens[:split_at])} {len(tokens[split_at:])}")
+                    token_docs.append(tokens[:split_at])
+                    tag_docs.append(tags[:split_at])
+                    tokens = tokens[split_at:]
+                    tokens[0] = 'SAMPLE_NOT_START'
+                    tags = tags[split_at:]
+                token_docs.append(tokens)
+                tag_docs.append(tags)
 
         return cls(token_docs, tag_docs)
 
