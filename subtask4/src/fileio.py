@@ -14,11 +14,14 @@ class GloconFile:
         raw_docs = re.split(r'\n\t?\n', raw_text)
         token_docs = []
         tag_docs = []
-        print(f"Reading {file_path} -> {len(raw_docs)} docs")
+        print(f"Reading {file_path}: ", end="")
+        print(f"{len(raw_docs)} examples - ", end="")
         if '\t' in raw_docs[0].split('\n')[0]:
             labels_exists = True
+            print("labels exist")
         else:
             labels_exists = False
+            print("labels do not exist")
         for doc in raw_docs:
             tokens = []
             tags = []
@@ -33,15 +36,18 @@ class GloconFile:
                 print(f"Split {len(tokens)} to -> :", end="")
                 sep_idx = [i for i,t in enumerate(tokens) if t == '[SEP]']
                 split_at = sep_idx[len(sep_idx)//2]
-                if split_at > max_tags:
-                    split_at = sep_idx[len(sep_idx)//2 - 1]
+                minus = 0
+                while split_at > max_tags:
+                    minus += 1
+                    split_at = sep_idx[len(sep_idx)//2 - minus]
+                print(f"{len(tokens[:split_at])} {len(tokens[split_at:])}")
                 token_docs.append(tokens[:split_at])
                 tag_docs.append(tags[:split_at])
                 print(f" {len(tokens[:split_at])}, {len(tokens[split_at:])}")
                 # print(f" {len(tokens[:split_at])}, {len(tags[:split_at])}")
                 # print(f" {len(tokens[split_at:])}, {len(tags[split_at:])}")
                 tokens = tokens[split_at:]
-                tokens[0] = 'SAMPLE_START'
+                tokens[0] = 'SAMPLE_NOT_START'
                 tags = tags[split_at:]
             token_docs.append(tokens)
             tag_docs.append(tags)
@@ -49,9 +55,18 @@ class GloconFile:
         return cls(token_docs, tag_docs)
 
     def save(self, file_path):
+        print(f"Saving {file_path}: ", end="")
+        lines = []
+        minus = 0
         with open(file_path, 'w') as f:
             for tokens, tags in zip(self.token_docs, self.tag_docs):
                 assert(len(tokens) == len(tags))
                 for token, tag in zip(tokens, tags):
-                    f.write(f"{token}\t{tag}\n")
-                f.write("\n")
+                    if token == 'SAMPLE_NOT_START':
+                        lines.pop()
+                        token = '[SEP]'
+                        minus += 1
+                    lines.append(f"{token}\t{tag}\n")
+                lines.append("\n")
+            f.writelines(lines)
+            print(f"{len(self.token_docs) - minus} predictions")
