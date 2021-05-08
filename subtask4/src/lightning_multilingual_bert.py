@@ -290,9 +290,21 @@ def cli_main():
         en_labels = sum(map(lambda x: x, preds[0]), [])
         es_labels = sum(map(lambda x: x, preds[1]), [])
         pt_labels = sum(map(lambda x: x, preds[2]), [])
-        en_predict_dataset.save(en_labels, model.tag_map, "predict-en.txt")
-        es_predict_dataset.save(es_labels, model.tag_map, "predict-es.txt")
-        pt_predict_dataset.save(pt_labels, model.tag_map, "predict-pt.txt")
+        version_dir = os.path.basename(os.path.dirname(os.path.dirname(args.load)))
+        submission_dir = os.path.join("submissions", version_dir)
+        os.system(f"mkdir -p {submission_dir}")
+
+        en_predict_dataset.save(en_labels, model.tag_map, "submission.txt")
+        os.system(f"zip {os.path.join(submission_dir, 'en.zip')} 'submission.txt'")
+        os.system(f"mv 'submission.txt' {os.path.join(submission_dir, 'en.txt')}")
+
+        es_predict_dataset.save(es_labels, model.tag_map, "submission.txt")
+        os.system(f"zip {os.path.join(submission_dir, 'es.zip')} 'submission.txt'")
+        os.system(f"mv 'submission.txt' {os.path.join(submission_dir, 'es.txt')}")
+
+        pt_predict_dataset.save(pt_labels, model.tag_map, "submission.txt")
+        os.system(f"zip {os.path.join(submission_dir, 'pt.zip')} 'submission.txt'")
+        os.system(f"mv 'submission.txt' {os.path.join(submission_dir, 'pt.txt')}")
 
     if args.delete_checkpoint:
         os.system(f"rm {trainer.checkpoint_callback.best_model_path}")
