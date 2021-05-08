@@ -7,7 +7,7 @@ class GloconFile:
         self.tag_docs = tag_docs
 
     @classmethod
-    def build(cls, file_path, max_tags=400):
+    def build(cls, file_path, max_tags=300):
         file_path = Path(file_path)
 
         raw_text = file_path.read_text().strip()
