@@ -73,9 +73,14 @@ class MultilingualTokenClassifier(pl.LightningModule):
         outputs = self.bert(
             input_ids, attention_mask=attention_mask
         )
-        log_probs = torch.nn.functional.log_softmax(outputs.logits.detach(), dim=-1)
+        logits = outputs.logits.detach()
+        log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
         batch_preds = self.viterbi_decoder.forward(log_probs, attention_mask)
-        return batch_preds
+        return {
+            "preds": batch_preds,
+            "logits": logits,
+            "log_probs": log_probs
+        }
 
     def train_dataloader(self):
         train_datasets = []
@@ -287,9 +292,9 @@ def cli_main():
         pt_predict_loader = DataLoader(pt_predict_dataset, batch_size=model.batch_size, shuffle=False)
 
         preds = trainer.predict(model, dataloaders=[en_predict_loader, es_predict_loader, pt_predict_loader])
-        en_labels = sum(map(lambda x: x, preds[0]), [])
-        es_labels = sum(map(lambda x: x, preds[1]), [])
-        pt_labels = sum(map(lambda x: x, preds[2]), [])
+        en_labels = sum(map(lambda x: x["preds"], preds[0]), [])
+        es_labels = sum(map(lambda x: x["preds"], preds[1]), [])
+        pt_labels = sum(map(lambda x: x["preds"], preds[2]), [])
         version_dir = os.path.basename(os.path.dirname(os.path.dirname(args.load)))
         submission_dir = os.path.join("submissions", version_dir)
         os.system(f"mkdir -p {submission_dir}")
