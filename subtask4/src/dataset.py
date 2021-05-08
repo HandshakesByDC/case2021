@@ -60,7 +60,7 @@ class GloconDataset(torch.utils.data.Dataset):
         return tokenizer(
             token_docs,
             is_split_into_words=True,
-            padding=True,
+            padding='max_length',
             truncation=True
         )
 
