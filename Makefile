@@ -30,7 +30,9 @@ data/task3-raw-data:
 	rm -rf task3-raw-data.zip
 
 task3: task3/data
+
+task3/data:
 	unzip data/task3-raw-data/05-2020.zip -d task3/data
 	unzip data/task3-raw-data/06-2020.zip -d task3/data
 	gzip -c -d data/task3-raw-data/NYTimes-2020-5.gz > task3/data/NYTimes-2020-5
-	gzip -c -d data/task3-raw-data/NYTimes-2020-5.gz > task3/data/NYTimes-2020-6
+	gzip -c -d data/task3-raw-data/NYTimes-2020-6.gz > task3/data/NYTimes-2020-6
