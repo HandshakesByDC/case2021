@@ -69,3 +69,4 @@ websockets==9.0.1
 Werkzeug==1.0.1
 yarl==1.6.3
 zipp==3.4.1
+wheel>=0.38.0 # not directly required, pinned by Snyk to avoid a vulnerability
