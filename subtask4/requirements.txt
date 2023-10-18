@@ -63,7 +63,7 @@ torchmetrics==0.2.0
 tqdm==4.60.0
 transformers==4.5.1
 typing-extensions==3.7.4.3
-urllib3==1.26.4
+urllib3==1.26.18
 wcwidth==0.2.5
 websockets==9.0.1
 Werkzeug==1.0.1
