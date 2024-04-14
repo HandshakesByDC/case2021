@@ -17,7 +17,7 @@ google-auth==1.30.0
 google-auth-oauthlib==0.4.4
 grpcio==1.37.1
 hyperopt==0.1.2
-idna==2.10
+idna==3.7
 importlib-metadata==4.0.1
 joblib==1.0.1
 json-tricks==3.15.5
@@ -61,7 +61,7 @@ tokenizers==0.10.2
 torch==1.7.1+cu101
 torchmetrics==0.2.0
 tqdm==4.60.0
-transformers==4.5.1
+transformers==4.38.0
 typing-extensions==3.7.4.3
 urllib3==1.26.4
 wcwidth==0.2.5
