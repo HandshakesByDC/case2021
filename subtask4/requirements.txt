@@ -60,7 +60,7 @@ threadpoolctl==2.1.0
 tokenizers==0.10.2
 torch==1.7.1+cu101
 torchmetrics==0.2.0
-tqdm==4.60.0
+tqdm==4.66.3
 transformers==4.5.1
 typing-extensions==3.7.4.3
 urllib3==1.26.4
