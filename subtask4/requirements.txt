@@ -49,7 +49,7 @@ ruamel.yaml==0.17.4
 ruamel.yaml.clib==0.2.2
 sacremoses==0.0.45
 schema==0.7.4
-scikit-learn==0.24.2
+scikit-learn==1.5.0
 scipy==1.6.3
 simplejson==3.17.2
 six==1.15.0
