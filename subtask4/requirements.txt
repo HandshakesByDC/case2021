@@ -30,7 +30,7 @@ numpy==1.20.2
 oauthlib==3.1.0
 packaging==20.9
 prettytable==2.1.0
-protobuf==3.15.8
+protobuf==4.25.8
 psutil==5.8.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
@@ -63,7 +63,7 @@ torchmetrics==0.2.0
 tqdm==4.60.0
 transformers==4.5.1
 typing-extensions==3.7.4.3
-urllib3==1.26.4
+urllib3==2.5.0
 wcwidth==0.2.5
 websockets==9.0.1
 Werkzeug==1.0.1
