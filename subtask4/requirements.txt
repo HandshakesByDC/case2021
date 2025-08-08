@@ -58,10 +58,10 @@ tensorboard==2.4.1
 tensorboard-plugin-wit==1.8.0
 threadpoolctl==2.1.0
 tokenizers==0.10.2
-torch==1.7.1+cu101
+torch==2.8.0+cu101
 torchmetrics==0.2.0
 tqdm==4.60.0
-transformers==4.5.1
+transformers==4.53.0
 typing-extensions==3.7.4.3
 urllib3==1.26.4
 wcwidth==0.2.5
